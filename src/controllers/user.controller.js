@@ -2,41 +2,40 @@ const query = require('../db/db');
 
 class UserController {
   async getAll(req, res) {
-    // get users info 
-    const usersInfo = await query('SELECT * FROM users_info');
+    let sql = `SELECT
+                id, name, password,
+                registered_at, rapid_rating,
+                blitz_rating, bullet_rating,
+                games_count
+               FROM users JOIN users_info
+               ON id = user_id`;
+    const users = await query(sql);
 
-    if (!usersInfo.rows.length) {
-      res.json({"detail": "Database doesn`t contain a signle user"});
-    } else {
-      // get user profile data
-      const usersProfiles = await query('SELECT * FROM users');
-
-      res.json({
-        info: usersInfo.rows,
-        profiles: usersProfiles.rows 
-      });
+    if (!users.rows.length) {
+      res.json({"detail": "Database doesn`t contain a single user"});
+      return;
     }
+    res.json(users.rows);
   }
 
   async getOne(req, res) {
     const id = req.params.id;
 
-    // get user info 
-    let sql = 'SELECT * FROM users_info WHERE user_id = $1';
-    const userInfo = await query(sql, [id]);
+    let sql = `SELECT
+                id, name, password,
+                registered_at, rapid_rating,
+                blitz_rating, bullet_rating,
+                games_count
+               FROM users JOIN users_info
+               ON id = user_id
+               WHERE id = $1`;
+    const user = await query(sql, [id]);
 
-    if (!userInfo.rows.length) {
+    if (!user.rows.length) {
       res.json({"detail": "User not found"});
-    } else {
-      // get user profile data
-      sql = 'SELECT * FROM users WHERE id = $1';
-      const userProfile = await query(sql, [id]);
-
-      res.json({
-        info: userInfo.rows[0],
-        profile: userProfile.rows[0] 
-      });
+      return;
     }
+    res.json(user.rows[0]);
   }
 
   async delete(req, res) {
@@ -111,6 +110,10 @@ class UserController {
       res.json(e);
     }
   }
+}
+
+function copyFields(obj1, obj2, ) {
+
 }
 
 module.exports = new UserController();
