@@ -1,51 +1,117 @@
-const query = require('../db/db');
+const db = require('../db/db');
+const GameDTO = require('../dto/game.dto');
 
 class GameController {
-  async getOne(req, res) {
+  async getGameInfo(req, res) {
     const id = req.params.id;
+    
+    const client = await db.getClient();
 
+    const queryText = `
+      SELECT ${GameDTO.fields.toString()} FROM games_info
+      JOIN games
+      ON id = game_id
+      WHERE game_id = $1
+    `;
+    const queryRes = await client.query(queryText, [id]);
 
+    res.json(queryRes.rows[0]);
+    client.release();
   }
 
   async getAllByUserId(req, res) {
     const userId = req.params.id;
+    
+    const client = await db.getClient();
+    
+    const queryText = `
+      SELECT ${GameDTO.fields.toString()} FROM games
+      JOIN games_info ON id = game_id
+      WHERE white_id = $1 OR black_id = $1
+    `;
+
+    const queryRes = await client.query(queryText, [userId]); 
+    res.json(queryRes.rows);
+    
+    client.release();
   }
 
   async delete(req, res) {
-    const id = req.params.od;
+    const id = req.params.id;
+    
+    const client = await db.getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      let queryText = `
+        DELETE FROM games_info WHERE game_id = $1
+        RETURNING game_id
+      `;
+      const queryRes = await client.query(queryText, [id]);
+
+      if (!queryRes.rows.length) {
+        throw new Error('Game not found');
+      }
+
+      queryText = 'DELETE FROM games WHERE id = $1';
+      await client.query(queryText, [id]);
+
+      await client.query('COMMIT');
+      res.json(queryRes.rows[0].game_id);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      res.json(e.message);
+    } finally {
+      client.release();
+    }
   }
 
   async update(req, res) {
-    const id = req.body.id;
+    const { id } = req.body;
+
+    // TODO: implement
+
   }
 
   async create(req, res) {
-    const { whitePlayerId, blackPlayerId } = req.body;
-
-    const timestamp = new Date(Date.now());
-    const date = timestamp.toLocaleDateString('en-US'); 
-    const time = timestamp.toLocaleTimeString('en-US'); 
+    const { whiteId, blackId, control, bonusTime } = req.body;
+    
+    const client = await db.getClient();
 
     try {
-      const game = await query(
-        'INSERT INTO games ( ' + 
-        ' whitePlayerId, blackPlayerId, ' +
-        ' gameResult, playedAt ' +
-        ') ' +
-        'VALUES ($1, $2, $3, $4) ' +
-        'RETURNING *', [
-          whitePlayerId, blackPlayerId,
-          'draw', `${date} ${time}`
-        ]
-      );
-      
-      const gameId = game.rows[0].id;
+      await client.query('BEGIN');
 
-      const gameInfo = await query(
-        'INSERT INTO gamesInfo '
-      );
+      let queryText = `
+        INSERT INTO games (white_id, black_id, control)
+        VALUES ($1, $2, $3)
+        RETURNING id
+      `;
+
+      const queryRes = await client.query(queryText, [
+        whiteId, blackId, control
+      ]);
+
+      queryText = `
+        INSERT INTO games_info (
+          game_id, bonus_time, moves
+        )
+        VALUES ($1, $2, $3::jsonb)  
+      `;
+
+      await client.query(queryText, [
+        queryRes.rows[0].id, bonusTime, 
+        JSON.stringify([{}])
+      ]);
+      
+      await client.query('COMMIT');
+      // send gameId back to the client
+      res.json(queryRes.rows[0].id); 
     } catch (e) {
-      res.json(e.detail);
+      await client.query('ROLLBACK');
+      res.json(e);
+    } finally {
+      client.release();
     }
   }
 }

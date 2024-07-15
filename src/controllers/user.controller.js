@@ -1,119 +1,164 @@
-const query = require('../db/db');
+const db = require('../db/db');
+const UserDTO = require('../dto/user.dto');
 
 class UserController {
   async getAll(req, res) {
-    let sql = `SELECT
-                id, name, password,
-                registered_at, rapid_rating,
-                blitz_rating, bullet_rating,
-                games_count
-               FROM users JOIN users_info
-               ON id = user_id`;
-    const users = await query(sql);
+    const client = await db.getClient();
+    
+    const queryText = `
+      SELECT ${UserDTO.fields.toString()} FROM users 
+      JOIN users_info
+      ON id = user_id
+    `;
+    const queryRes = await client.query(queryText); 
 
-    if (!users.rows.length) {
-      res.json({"detail": "Database doesn`t contain a single user"});
-      return;
-    }
-    res.json(users.rows);
+    res.json(queryRes.rows);
+    client.release();
   }
 
   async getOne(req, res) {
     const id = req.params.id;
-
-    let sql = `SELECT
-                id, name, password,
-                registered_at, rapid_rating,
-                blitz_rating, bullet_rating,
-                games_count
-               FROM users JOIN users_info
-               ON id = user_id
-               WHERE id = $1`;
-    const user = await query(sql, [id]);
-
-    if (!user.rows.length) {
-      res.json({"detail": "User not found"});
-      return;
+    
+    const client = await db.getClient();
+    
+    const queryText = `
+      SELECT ${UserDTO.fields.toString()}
+      FROM users 
+      JOIN users_info
+      ON id = user_id
+      WHERE id = $1
+    `;
+    try {
+      const queryRes = await client.query(queryText, [id]);
+      res.json(queryRes.rows[0]);
+      
+    } catch (e) {
+      res.json(e);
     }
-    res.json(user.rows[0]);
+    
+    client.release();
   }
 
   async delete(req, res) {
     const id = req.params.id;
 
-    let sql = `DELETE FROM users_info WHERE user_id = $1
-               RETURNING *`;
- 
-    let user = await query(sql, [id]); 
+    const client = await db.getClient();
 
-    if (!user.rows.length) {
-      res.json({"detail": "User not found"});
-    } else {
-      sql = 'DELETE FROM users WHERE id = $1 RETURNING *';
-      user = await query(sql, [id]);
-      res.json(user.rows[0]);
+    try {
+      await client.query('BEGIN');
+
+      let queryText = `
+        DELETE FROM users_info WHERE user_id = $1
+        RETURNING user_id
+      `;
+      const queryRes = await client.query(queryText, [id]);
+
+      if (!queryRes.rows.length) {
+        throw new Error('User not found');
+      }
+
+      queryText = `
+        UPDATE users SET is_deleted = TRUE
+        WHERE id = $1 
+      `;
+      await client.query(queryText, [id]);
+
+      await client.query('COMMIT');
+      res.json(queryRes.rows[0].user_id);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      res.json(e.message);
+    } finally {
+      client.release();
     }
   }
 
   async updateField(req, res) {  
     const { field, id, value } = req.body;
-    
-    let table;
-    switch (field) {
-      case 'name':
-      case 'password':
-        table = 'users';
-        break;
 
-      case 'blitz_rating': 
-      case 'rapid_rating':
-      case 'bullet_rating':
-      case 'games_count':
-        table = 'users_info';
-        break;
+    const client = await db.getClient();
 
-      default:
-        res.json({"detail": "Incorrect field to update"});
-        return;        
-    }
-
-    const idCol = table === 'users' ? 'id' : 'user_id'; 
-    const sql = `UPDATE ${table} SET ${field} = $1
-                 WHERE ${idCol} = $2 RETURNING *`;
-    
     try {
-      const user = await query(sql, [value, id]);
-      res.json(user.rows[0]);
+      await client.query('BEGIN');
+
+      const table = getTableFromField(field);
+
+      if (table === 'Incorrect field to update') {
+        throw new Error(table);
+      } 
+
+      const idCol = table === 'users' ? 'id' : 'user_id'; 
+      let queryText = `
+        UPDATE ${table} SET ${field} = $1
+        WHERE ${idCol} = $2 RETURNING ${idCol}
+      `;
+
+      const queryRes = await client.query(queryText, [value, id]);
+
+      await client.query('COMMIT');
+      res.json(queryRes.rows[0][idCol]);
     } catch (e) {
-      res.json(e);
+      await client.query('ROLLBACK');
+      res.json(e.message);
+    } finally {
+      client.release();
     }
   }
 
   async create(req, res) {
     const { name, password } = req.body;  
 
-    try {
-      // insert a new user to the users table
-      let sql = `INSERT INTO users (name, password)
-                 VALUES ($1, $2) RETURNING *`;  
-
-      const user = await query(sql, [name, password]);
-
-      // insert a new user_info record
-      sql = `INSERT INTO users_info (user_id) VALUES ($1)`;
-      await query(sql, [user.rows[0].id]);
-
-      // return created user to the client
-      res.json(user.rows[0]);
-    } catch (e) {
-      // password_length or username_exists errors
-      res.json(e);
+    if (name.includes(' ') || password.includes(' ')) {
+      res.json({detail: 'Name and password cannot contain whitespaces'});
+      return;
     }
+
+    const client = await db.getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      let queryText = `
+        INSERT INTO users (name, password)
+        VALUES ($1, $2) RETURNING id
+      `;
+
+      const queryRes = await client.query(queryText, [
+        name, password
+      ]);
+
+      queryText = `
+        INSERT INTO users_info (user_id) VALUES ($1)
+      `;
+      await client.query(queryText, [queryRes.rows[0].id]);
+
+      await client.query('COMMIT');
+      // send userId back to the client
+      res.json(queryRes.rows[0].id);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      res.json(e.message);
+    } finally {
+      client.release();
+    } 
   }
 }
 
-function copyFields(obj1, obj2, ) {
+function getTableFromField(field) {
+  switch (field) {
+    case 'name':
+    case 'password':
+      return 'users';
 
+    case 'blitz_rating': 
+    case 'rapid_rating':
+    case 'bullet_rating':
+    case 'games_count':
+      return 'users_info';
+
+    default:
+      return 'Incorrect field to update';        
+  }
 }
 
 module.exports = new UserController();

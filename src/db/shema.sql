@@ -2,6 +2,7 @@ CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL UNIQUE,
   password VARCHAR(100) NOT NULL,
+  is_deleted BOOLEAN NOT NULL DEFAULT false,
   registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT password_length CHECK (
     LENGTH(password) > 7
@@ -22,22 +23,24 @@ CREATE TABLE users_info (
   	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
-CREATE TYPE RESULT AS ENUM ('white', 'black', 'draw');
+CREATE TYPE RESULT AS ENUM ('white', 'black', 'draw', 'continues');
+CREATE TYPE TIME_CONTROL AS ENUM ('blitz', 'bullet', 'rapid');
+CREATE TYPE BONUS AS ENUM ('00:00:01', '00:00:02', '00:00:10', '00:00:00');
 
 CREATE TABLE games (
   id SERIAL PRIMARY KEY,
-  game_result RESULT NOT NULL,
-  white_player_id INT NOT NULL,
-  black_player_id INT NOT NULL,
-  played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  control TIME_CONTROL NOT NULL,
+  white_id INT NOT NULL,
+  black_id INT NOT NULL,
+  game_result RESULT NOT NULL DEFAULT 'continues',
+  FOREIGN KEY (white_id) REFERENCES users(id),
+  FOREIGN KEY (black_id) REFERENCES users(id)
 );
 
 CREATE TABLE games_info (
-  game_id INT,
-  white_player_id INT NOT NULL,
-  black_player_id INT NOT NULL,
-  moves text[] NOT NULL,
-  FOREIGN KEY (white_player_id) REFERENCES users(id),
-  FOREIGN KEY (black_player_id) REFERENCES users(id),
+  game_id INT NOT NULL UNIQUE,
+  bonus_time BONUS NOT NULL,
+  moves JSONB,
   FOREIGN KEY (game_id) REFERENCES games(id)
 );
