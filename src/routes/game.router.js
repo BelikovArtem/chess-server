@@ -9,7 +9,7 @@ router.get('/games/user/:id', gameController.getAllByUserId);
 // delete game
 router.delete('/games/:id', gameController.delete);
 // update game info
-router.put('/games', gameController.update);
+router.put('/games', gameController.updateField);
 // create new game
 router.post('/games', gameController.create);
 

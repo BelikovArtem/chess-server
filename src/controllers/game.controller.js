@@ -67,10 +67,36 @@ class GameController {
     }
   }
 
-  async update(req, res) {
-    const { id } = req.body;
+  async updateField(req, res) {
+    const { field, id, value } = req.body;
 
-    // TODO: implement
+    const client = await db.getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      const table = getTableFromField(field);
+
+      if (table === 'Incorrect field to update') {
+        throw new Error(table);
+      }
+
+      const idCol = table === 'games' ? 'id' : 'game_id';
+      
+      let queryText = `
+        UPDATE ${table} SET ${field} = $1
+        WHERE ${idCol} = $2 RETURNING ${idCol}
+      `;
+      const queryRes = await client.query(queryText, [value, id]); 
+
+      await client.query('COMMIT');
+      res.json(queryRes.rows[0][idCol]);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      res.json(e.message);
+    } finally {
+      client.release();
+    }
 
   }
 
