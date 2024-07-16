@@ -1,6 +1,6 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
-const client = new Client({
+const pool = new Pool({
   host: '127.0.0.1',
   port: 5432,
   database: 'chess',
@@ -8,8 +8,10 @@ const client = new Client({
   password: 'admin'
 });
 
-client.connect();
+module.exports.query = async (text, params) => {
+  return await pool.query(text, params);
+}
 
-module.exports = async function query(text, params, callback) {
-  return client.query(text, params, callback);
+module.exports.getClient = async () => {
+  return await pool.connect();
 }
