@@ -1,6 +1,6 @@
 const express = require('express');
-const userRouter = require('./routes/user.router');
-const gameRouter = require('./routes/game.router');
+const userRouter = require('./user/user.router');
+const gameRouter = require('./game/game.router');
 
 const HOST = '127.0.0.1';
 const app = express();
