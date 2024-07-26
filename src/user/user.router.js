@@ -12,5 +12,7 @@ router.delete('/users/:id', userController.delete);
 router.put('/users', userController.update);
 // create user 
 router.post('/users', userController.create);
+// CORS preflight request
+router.options('/users', userController.options);
 
 module.exports = router;
