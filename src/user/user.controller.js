@@ -1,9 +1,16 @@
 const userService = require('./user.service');
+const headers = require('../consts');
 
 class UserController {
   async getMany(req, res) {
     const users = await userService.getMany();
-    res.json(users);
+    res.end();
+  }
+
+  async options(req, res) {
+    res.writeHead(200, {
+      ...headers
+    }).end();
   }
 
   async getOne(req, res) {
@@ -25,7 +32,12 @@ class UserController {
 
     try {
       const user = await userService.create(name, password);
-      res.json(user);
+      
+      res.writeHead(200, {
+        ...headers,
+        'Content-Type': 'application/json'
+      })
+      .end(JSON.stringify(user));
     } catch (e) {
       console.log(e);
       res.status(500).send('Name taken');
