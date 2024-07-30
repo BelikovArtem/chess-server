@@ -1,17 +1,23 @@
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
-  host: '127.0.0.1',
-  port: 5432,
-  database: 'chess',
-  user: 'postgres',
-  password: 'admin'
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD
 });
 
-module.exports.query = async (text, params) => {
+async function query(text, params) {
   return await pool.query(text, params);
 }
 
-module.exports.getClient = async () => {
+async function getClient() {
   return await pool.connect();
+}
+
+module.exports = {
+  query,
+  getClient
 }
