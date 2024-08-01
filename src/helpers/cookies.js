@@ -4,4 +4,4 @@ function parseCookies(cookieHeaders) {
   return false;
 } 
 
-module.exports = parseCookies;
+export default parseCookies;

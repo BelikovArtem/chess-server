@@ -1,16 +1,16 @@
-const { Router } = require('express');
-const authController = require('./auth.controller');
+import { Router } from 'express';
+import AuthController from './auth.controller.js';
 const router = new Router();
 
 // sign up user 
-router.post('/signup', authController.signUp);
+router.post('/signup', AuthController.signUp);
 // sign in user
-router.post('/signin', authController.signIn);
+router.post('/signin', AuthController.signIn);
 // sign out user
-router.get('/signout', authController.signOut);
+router.get('/signout', AuthController.signOut);
 // CORS preflight request
-router.options('/*', authController.cors);
+router.options('/*', AuthController.cors);
 // refresh token
-router.get('/refresh', authController.refreshToken);
+router.get('/refresh', AuthController.refreshToken);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const db = require('../db/connection');
+import db from '../db/connection.js';
 
 class AuthService {
   async signUp(name, password) {
@@ -120,4 +120,4 @@ class AuthService {
   }
 }
 
-module.exports = new AuthService();
+export default new AuthService();

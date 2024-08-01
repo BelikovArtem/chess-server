@@ -1,10 +1,10 @@
-const jwt = require('../auth/jwt');
-const headers = require('../consts');
+import jwt from '../auth/jwt';
+import headers from '../consts';
 
-module.exports = function verify(req, res, next) {
-  const headers = req.headers;
-  if (headers.authorization) {
-    const token = jwt.getFromHeaders(headers);
+export default function verify(req, res, next) {
+  const reqHeaders = req.headers;
+  if (reqHeaders.authorization) {
+    const token = jwt.getFromHeaders(reqHeaders);
     
     jwt.verify(token)
     .then(name => {

@@ -5,4 +5,4 @@ const headers = {
   'Content-Type': 'application/json'
 }
 
-module.exports = headers;
+export default headers;

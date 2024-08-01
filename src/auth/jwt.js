@@ -1,5 +1,6 @@
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+dotenv.config();
 
 async function sign(payload, secret, options) {
   return new Promise((res, rej) => {
@@ -46,12 +47,11 @@ async function generatePair(name, accessExpires, refreshExpires) {
       refreshToken
     };
   } catch (err) {
-    console.log(err);
     return null;
   }
 }
 
-module.exports = {
+export default {
   sign,
   verify,
   generatePair,
