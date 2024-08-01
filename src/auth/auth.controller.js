@@ -1,6 +1,7 @@
 const jwt = require('./jwt');
 const headers = require('../consts');
 const authService = require('./auth.service');
+const parseCookies = require('../helpers/cookies'); 
 
 class AuthController {
   // post
@@ -33,7 +34,7 @@ class AuthController {
   
       res.writeHead(200, {
         ...headers
-      }).end(JSON.stringify({accessToken}));
+      }).end(JSON.stringify({userId, name, accessToken}));
     } catch (err) {
       res.writeHead(599, {
         ...headers
@@ -46,22 +47,22 @@ class AuthController {
     const { name, password } = req.body;
 
     try {
-      const user = await authService.signIn(name, password);
+      const userId = await authService.signIn(name, password);
 
-      if (!user) {
+      if (!userId) {
         throw new Error('Incorrect username or password');
-      }
-
+      } 
+            
       const { accessToken, refreshToken } = await jwt.generatePair(
         name, '1min', '1d' 
       );
       
       // Store refreshToken in the database
-      const isSuccess = await authService.storeToken(user.id, refreshToken);
+      const isSuccess = await authService.storeToken(userId, refreshToken);
       if (!isSuccess) {
         throw new Error('Refresh token cannot be stored');
       }
-
+      
       res.cookie('token', refreshToken, {
         httpOnly: true,
         maxAge: 86400000 // 1d in milliseconds
@@ -69,7 +70,7 @@ class AuthController {
   
       res.writeHead(200, {
         ...headers
-      }).end(JSON.stringify({accessToken}));
+      }).end(JSON.stringify({id: userId, username: name, token: accessToken}));
     } catch (err) {
       console.log(err);
       res.writeHead(422, {
@@ -129,6 +130,8 @@ class AuthController {
       }).end();
       return;
     } else {
+      // remove old refresh token
+      await authService.removeToken(token);
       /*
        * TODO: implement injection of the user contoller to 
        * keep track of the user`s data changes

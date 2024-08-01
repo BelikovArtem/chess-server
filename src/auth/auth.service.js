@@ -46,30 +46,9 @@ class AuthService {
         throw new Error('User not found');
       }
       
-      return {
-        id: id,
-        name: name
-      };
+      return id;
     } catch (err) {
       return null;
-    } finally {
-      client.release();
-    }
-  }
-
-  // remove refreshToken from the db
-  async signOut(token) {
-    const client = await db.getClient();
-
-    const queryText = `
-      DELETE FROM refresh_tokens
-      WHERE token = $1
-    `;
-    try {
-      await client.query(queryText, [token]);
-      return true;
-    } catch (err) {
-      return false;
     } finally {
       client.release();
     }
@@ -108,14 +87,36 @@ class AuthService {
     `;
 
     const queryRes = await client.query(queryText, [token]);
+    client.release();
 
     if (!queryRes.rows.length) {
       return null;
     } else {
       return queryRes.rows[0];
     }
+  }
 
-    client.release();
+  async removeToken(token) {
+    const client = await db.getClient();
+
+    const queryText = `
+      DELETE FROM refresh_tokens
+      WHERE token = $1
+      RETURNING id
+    `;
+
+    try {
+      const queryRes = await client.query(queryText, [token]);
+
+      if (!queryRes.rows.length) {
+        throw new Error('Token not found');
+      }
+      return true;
+    } catch (err) {
+      return false;
+    } finally {
+      client.release();
+    }
   }
 }
 
