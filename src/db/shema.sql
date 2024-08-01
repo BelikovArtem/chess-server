@@ -1,7 +1,7 @@
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
-  name VARCHAR(100) NOT NULL UNIQUE,
-  password VARCHAR(100) NOT NULL,
+  name VARCHAR(30) NOT NULL UNIQUE,
+  password VARCHAR(30) NOT NULL,
   is_deleted BOOLEAN NOT NULL DEFAULT false,
   registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT password_length CHECK (
@@ -20,7 +20,17 @@ CREATE TABLE users_info (
 		rapid_rating > 0 AND
 		bullet_rating > 0 
 	),
-  	FOREIGN KEY (user_id) REFERENCES users(id)
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE refresh_tokens (
+	id SERIAL PRIMARY KEY,
+	user_id INT NOT NULL,
+	token TEXT NOT NULL,
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	expires_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP + INTERVAL '15 minutes',
+	is_revoked BOOLEAN DEFAULT FALSE,
+	FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE TYPE RESULT AS ENUM ('white', 'black', 'draw', 'continues');
